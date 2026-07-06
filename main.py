@@ -1,0 +1,76 @@
+import hmac
+import hashlib
+import time
+import requests
+import os
+from dotenv import load_dotenv
+from BB import ByBit
+
+
+
+bybit = ByBit(demo=True)
+
+def print_balance(balance_response):
+    """Красивый вывод баланса"""
+    if balance_response.get("retCode") != 0:
+        print(f"Ошибка: {balance_response.get('retMsg')}")
+        return
+    
+    accounts = balance_response.get("result", {}).get("list", [])
+    
+    for account in accounts:
+        print(f"\n{'='*50}")
+        print(f"Тип счета: {account.get('accountType')}")
+        print(f"Общий баланс: {account.get('totalWalletBalance')} USDT")
+        print(f"Доступно: {account.get('totalAvailableBalance')} USDT")
+        print(f"Эквити: {account.get('totalEquity')} USDT")
+        print(f"{'='*50}")
+        
+        print("\nМонеты:")
+        for coin in account.get("coin", []):
+            name = coin.get('coin')
+            wallet = coin.get('walletBalance')
+            usd_value = coin.get('usdValue')
+            locked = coin.get('locked')
+            available = coin.get('availableToWithdraw')
+            
+            print(f"  {name}:")
+            print(f"    Баланс: {wallet} ({usd_value} USD)")
+            print(f"    Доступно: {available}")
+            print(f"    Заблокировано: {locked}")
+
+
+price = bybit.get_current_price("BTCUSDT")
+current_price = float(price['result']['list'][0]['lastPrice'])
+print(f"Текущая цена: {current_price}")
+
+
+"""order = bybit.place_order(
+    symbol="BTCUSDT",
+    side="Sell",
+    order_type="Market",
+    qty=0.001
+)
+print("Покупка с SL/TP:", order)"""
+
+"""# 4. Продажа
+order = bybit.place_order(
+    symbol="BTCUSDT",
+    side="Buy",
+    order_type="Market",
+    qty=0.002
+)
+print("Рыночная продажа:", order)"""
+
+# 6. Получение открытых ордеров
+#open_orders = bybit.get_open_orders("BTCUSDT")
+#positions = bybit.get_positions("BTCUSDT")
+#print("Открытые ордера:", open_orders)
+#print("Позиции:", positions)
+
+result = bybit.get_supertrend("BTCUSDT", "60", 15, 3.0)
+print(f"Текущий сигнал: {result['current_signal']}")
+print(f"SuperTrend: {result['current_supertrend']}")
+print(f"Цена: {result['current_price']}")
+print(f"Смена тренда: {result['trend_change']}")
+print(f"Количество свечей: {result['candles_count']}")
