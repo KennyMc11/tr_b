@@ -184,7 +184,8 @@ class ByBit:
                 "supertrend": round(supertrend_value, 4),
                 "signal": signal,
                 "upper_band": round(final_upper[i], 4),
-                "lower_band": round(final_lower[i], 4)
+                "lower_band": round(final_lower[i], 4),
+                "atr": atr
             })
         
         return result
@@ -250,7 +251,8 @@ class ByBit:
                 "supertrend": supertrend_data[i]["supertrend"],
                 "signal": supertrend_data[i]["signal"],
                 "upper_band": supertrend_data[i]["upper_band"],
-                "lower_band": supertrend_data[i]["lower_band"]
+                "lower_band": supertrend_data[i]["lower_band"],
+                "atr": supertrend_data[i]["atr"]
             })
         
         # Определяем последние сигналы для удобства
@@ -397,6 +399,33 @@ class ByBit:
         
         response = self._req("GET", "/v5/position/list", params, auth=True)
         return response
+
+    def weighted_mean(self, data, min_weight=0.1, max_weight=1.0):
+        """
+        Вычисляет взвешенное среднее с плавно возрастающими весами.
+        Args:
+            data: список чисел
+            min_weight: вес первого элемента (по умолчанию 0.1)
+            max_weight: вес последнего элемента (по умолчанию 1.0)
+        Returns:
+            взвешенное среднее
+        """
+        n = len(data)
+        
+        if n == 0:
+            return 0
+        
+        # Создаем веса от min_weight до max_weight равномерно
+        if n == 1:
+            weights = [1.0]  # если один элемент, вес = 1
+        else:
+            weights = [min_weight + (max_weight - min_weight) * i / (n - 1) for i in range(n)]
+        
+        # Считаем взвешенное среднее
+        weighted_mean = sum(d * w for d, w in zip(data, weights)) / sum(weights)
+        
+        return weighted_mean
+
 
 """bybit = ByBit(demo=True)
 x = bybit.get_balance()

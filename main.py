@@ -68,9 +68,17 @@ print("Рыночная продажа:", order)"""
 #print("Открытые ордера:", open_orders)
 #print("Позиции:", positions)
 
-result = bybit.get_supertrend("BTCUSDT", "60", 15, 3.0)
-print(f"Текущий сигнал: {result['current_signal']}")
-print(f"SuperTrend: {result['current_supertrend']}")
-print(f"Цена: {result['current_price']}")
-print(f"Смена тренда: {result['trend_change']}")
-print(f"Количество свечей: {result['candles_count']}")
+st240 = bybit.get_supertrend("BTCUSDT", "240", 15, 3.0)
+print(f"\nSuperTrend {st240['symbol']}, интервал: {st240["interval"]} мин, период: {st240["period"]} свечей * 5")
+print(f"Текущий сигнал: {st240['current_signal']}")
+print(f"SuperTrend: {st240['current_supertrend']}")
+print(f"Цена: {st240['current_price']}")
+print(f"Смена тренда: {st240['trend_change']}")
+print(f"Количество свечей: {st240['candles_count']}\n")
+
+
+candles_for_atr = bybit.get_supertrend("BTCUSDT", "60", 15, 3.0)
+#print(f"ATR 48 часовых свеч: {candles_for_atr['candles'][0]['atr'][-45:]}")
+atr = candles_for_atr['candles'][0]['atr'][-45:]
+mean_atr = bybit.weighted_mean(atr)
+print(f"Среднее взвешенное {candles_for_atr['symbol']} ATR за 48 часов: {mean_atr}\n")
