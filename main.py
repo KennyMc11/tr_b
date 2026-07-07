@@ -68,8 +68,8 @@ print("Рыночная продажа:", order)"""
 #print("Открытые ордера:", open_orders)
 #print("Позиции:", positions)
 
-st240 = bybit.get_supertrend("BTCUSDT", "240", 15, 3.0)
-print(f"\nSuperTrend {st240['symbol']}, интервал: {st240["interval"]} мин, период: {st240["period"]} свечей * 5")
+st240 = bybit.get_supertrend("BTCUSDT", "60", 15, 3.0)
+print(f"\nSuperTrend {st240['symbol']}, интервал: {st240["interval"]} мин, период: {st240["period"]} свечей * 3")
 print(f"Текущий сигнал: {st240['current_signal']}")
 print(f"SuperTrend: {st240['current_supertrend']}")
 print(f"Цена: {st240['current_price']}")
@@ -77,8 +77,14 @@ print(f"Смена тренда: {st240['trend_change']}")
 print(f"Количество свечей: {st240['candles_count']}\n")
 
 
-candles_for_atr = bybit.get_supertrend("BTCUSDT", "60", 15, 3.0)
-#print(f"ATR 48 часовых свеч: {candles_for_atr['candles'][0]['atr'][-45:]}")
-atr = candles_for_atr['candles'][0]['atr'][-45:]
-mean_atr = bybit.weighted_mean(atr)
-print(f"Среднее взвешенное {candles_for_atr['symbol']} ATR за 48 часов: {mean_atr}\n")
+atr_data_60 = bybit.get_atr_from_kline("BTCUSDT", interval="60", period=15)
+atr_data_240 = bybit.get_atr_from_kline("BTCUSDT", interval="240", period=15)
+
+
+print(f"📊 Текущий ATR 60 мин: {atr_data_60['current_atr']} пунктов")
+print(f"📊 ATR в % от цены: {atr_data_60['current_atr_percent']}%")
+print(f"📊 Текущая цена: {atr_data_60['current_price']}\n")
+
+print(f"📊 Текущий ATR 240 мин: {atr_data_240['current_atr']} пунктов")
+print(f"📊 ATR в % от цены: {atr_data_240['current_atr_percent']}%")
+print(f"📊 Текущая цена: {atr_data_240['current_price']}\n")

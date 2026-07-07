@@ -99,95 +99,138 @@ class ByBit:
         return response
     
     def _calculate_atr(self, highs, lows, closes, period):
-        """Расчет Average True Range"""
+        """Расчет Average True Range (исправленная версия)"""
+        n = len(highs)
+        
+        if n < period:
+            return []  # недостаточно данных
+        
+        # 1. Считаем True Range для каждого бара, начиная со второго
         tr_values = []
         
-        # Первое значение True Range
+        # Первый True Range — упрощенно high - low (нет предыдущего закрытия)
         tr_values.append(highs[0] - lows[0])
         
-        # Расчет True Range для остальных значений
-        for i in range(1, len(highs)):
+        for i in range(1, n):
             high_low = highs[i] - lows[i]
             high_close = abs(highs[i] - closes[i-1])
             low_close = abs(lows[i] - closes[i-1])
             tr = max(high_low, high_close, low_close)
             tr_values.append(tr)
         
-        # Расчет ATR (используем RMA - скользящее среднее по Уайлдеру)
-        atr_values = []
+        # 2. Расчет ATR по методу Уайлдера
+        atr_values = [0.0] * n
         
-        for i in range(len(tr_values)):
-            if i == 0:
-                atr_values.append(tr_values[0])
-            elif i < period:
-                atr_values.append(sum(tr_values[:i+1]) / (i+1))
-            else:
-                atr_values.append((atr_values[i-1] * (period - 1) + tr_values[i]) / period)
+        # Первый ATR: среднее арифметическое первых 'period' значений True Range
+        first_atr = sum(tr_values[:period]) / period
+        atr_values[period - 1] = first_atr
+        
+        # Последующие ATR: сглаживание Уайлдера
+        for i in range(period, n):
+            atr_values[i] = (atr_values[i-1] * (period - 1) + tr_values[i]) / period
         
         return atr_values
     
     def _calculate_supertrend(self, highs, lows, closes, period, multiplier):
-        """Расчет индикатора SuperTrend"""
         if len(highs) < period:
             return []
-        
-        # Расчет ATR
+
         atr = self._calculate_atr(highs, lows, closes, period)
-        
-        # Базовый расчет верхней и нижней полосы
-        upper_band = []
-        lower_band = []
-        
-        for i in range(len(highs)):
+        n = len(highs)
+
+        start_idx = period - 1
+
+        # Базовые полосы
+        upper_band = [0.0] * n
+        lower_band = [0.0] * n
+
+        for i in range(start_idx, n):
             hl2 = (highs[i] + lows[i]) / 2
-            upper_band.append(hl2 + multiplier * atr[i])
-            lower_band.append(hl2 - multiplier * atr[i])
-        
-        # Финальный расчет с учетом тренда
-        final_upper = [0] * len(highs)
-        final_lower = [0] * len(highs)
-        
-        for i in range(len(highs)):
-            if i == 0:
+            upper_band[i] = hl2 + multiplier * atr[i]
+            lower_band[i] = hl2 - multiplier * atr[i]
+
+        # Финальные полосы и сигналы
+        final_upper = [0.0] * n
+        final_lower = [0.0] * n
+        result = []
+
+        for i in range(n):
+            if i < start_idx:
+                result.append({
+                    "supertrend": 0.0,
+                    "signal": "NEUTRAL",
+                    "upper_band": 0.0,
+                    "lower_band": 0.0,
+                    "atr": 0.0
+                })
+                continue
+
+            # Инициализация первого бара
+            if i == start_idx:
                 final_upper[i] = upper_band[i]
                 final_lower[i] = lower_band[i]
             else:
-                if closes[i-1] > final_upper[i-1]:
-                    final_lower[i] = max(lower_band[i], final_lower[i-1])
-                else:
-                    final_lower[i] = lower_band[i]
-                    
-                if closes[i-1] < final_lower[i-1]:
-                    final_upper[i] = min(upper_band[i], final_upper[i-1])
-                else:
+                # Обновление полос
+                if upper_band[i] < final_upper[i-1] or closes[i-1] > final_upper[i-1]:
                     final_upper[i] = upper_band[i]
-        
-        # Определение сигнала и значения SuperTrend
-        result = []
-        for i in range(len(highs)):
-            if closes[i] > final_lower[i]:
-                signal = "LONG"
-                supertrend_value = final_lower[i]
-            elif closes[i] < final_upper[i]:
-                signal = "SHORT"
-                supertrend_value = final_upper[i]
-            else:
-                # Если не определено, используем предыдущее значение
-                if i > 0:
-                    signal = result[i-1]["signal"]
-                    supertrend_value = final_lower[i] if signal == "LONG" else final_upper[i]
+                else:
+                    final_upper[i] = final_upper[i-1]
+                    
+                if lower_band[i] > final_lower[i-1] or closes[i-1] < final_lower[i-1]:
+                    final_lower[i] = lower_band[i]
+                else:
+                    final_lower[i] = final_lower[i-1]
+
+            # Определение сигнала и значения SuperTrend
+            if i == start_idx:
+                # Для первого бара
+                if closes[i] > final_upper[i]:
+                    signal = "LONG"
+                    supertrend_value = final_lower[i]
+                elif closes[i] < final_lower[i]:
+                    signal = "SHORT"
+                    supertrend_value = final_upper[i]
                 else:
                     signal = "NEUTRAL"
                     supertrend_value = final_lower[i]
-            
+            else:
+                # Определяем на основе предыдущего состояния
+                prev_signal = result[i-1]["signal"]
+                
+                if prev_signal == "LONG":
+                    if closes[i] < final_lower[i]:
+                        signal = "SHORT"
+                        supertrend_value = final_upper[i]
+                    else:
+                        signal = "LONG"
+                        supertrend_value = final_lower[i]
+                elif prev_signal == "SHORT":
+                    if closes[i] > final_upper[i]:
+                        signal = "LONG"
+                        supertrend_value = final_lower[i]
+                    else:
+                        signal = "SHORT"
+                        supertrend_value = final_upper[i]
+                else:
+                    # NEUTRAL состояние
+                    if closes[i] > final_upper[i]:
+                        signal = "LONG"
+                        supertrend_value = final_lower[i]
+                    elif closes[i] < final_lower[i]:
+                        signal = "SHORT"
+                        supertrend_value = final_upper[i]
+                    else:
+                        signal = "NEUTRAL"
+                        supertrend_value = final_lower[i]
+
             result.append({
                 "supertrend": round(supertrend_value, 4),
                 "signal": signal,
                 "upper_band": round(final_upper[i], 4),
                 "lower_band": round(final_lower[i], 4),
-                "atr": atr
+                "atr": round(atr[i], 4)
             })
-        
+
         return result
     
     def get_supertrend(self, symbol: str, interval: str = "60", period: int = 15, 
@@ -425,6 +468,144 @@ class ByBit:
         weighted_mean = sum(d * w for d, w in zip(data, weights)) / sum(weights)
         
         return weighted_mean
+
+    def calculate_atr(self, highs, lows, closes, period=15):
+        """
+        Расчет Average True Range (ATR) по методу Уайлдера
+        
+        Args:
+            highs: список максимальных цен (list of float)
+            lows: список минимальных цен (list of float)
+            closes: список цен закрытия (list of float)
+            period: период расчета (int, по умолчанию 15)
+        
+        Returns:
+            dict с результатами:
+            - atr_values: список значений ATR для каждого бара (list of float)
+            - current_atr: текущее значение ATR (float)
+            - current_atr_percent: текущий ATR в процентах от цены (float)
+            - tr_values: список True Range для каждого бара (list of float)
+            - average_tr: среднее значение True Range за период (float)
+        
+        Example:
+            result = bybit.calculate_atr(highs, lows, closes, period=14)
+            print(f"Текущий ATR: {result['current_atr']}")
+            print(f"ATR в % от цены: {result['current_atr_percent']}%")
+        """
+        
+        # Проверка на достаточность данных
+        if len(highs) < period or len(lows) < period or len(closes) < period:
+            return {
+                "error": f"Недостаточно данных. Минимум {period} баров, получено {len(highs)}",
+                "atr_values": [],
+                "current_atr": 0.0,
+                "current_atr_percent": 0.0,
+                "tr_values": [],
+                "average_tr": 0.0
+            }
+        
+        n = len(highs)
+        
+        # Шаг 1: Расчет True Range для каждого бара
+        tr_values = []
+        
+        # Первый True Range (упрощенный, так как нет предыдущего закрытия)
+        tr_values.append(highs[0] - lows[0])
+        
+        # True Range для остальных баров
+        for i in range(1, n):
+            high_low = highs[i] - lows[i]
+            high_close = abs(highs[i] - closes[i-1])
+            low_close = abs(lows[i] - closes[i-1])
+            tr = max(high_low, high_close, low_close)
+            tr_values.append(tr)
+        
+        # Шаг 2: Расчет ATR по методу Уайлдера
+        atr_values = [0.0] * n
+        
+        # Первый ATR (индекс period-1) = простое среднее первых period значений TR
+        first_atr = sum(tr_values[:period]) / period
+        atr_values[period - 1] = first_atr
+        
+        # Последующие значения ATR (сглаживание Уайлдера)
+        for i in range(period, n):
+            atr_values[i] = (atr_values[i-1] * (period - 1) + tr_values[i]) / period
+        
+        # Шаг 3: Расчет дополнительных метрик
+        current_atr = atr_values[-1]  # Последнее значение ATR
+        current_price = closes[-1]     # Текущая цена
+        current_atr_percent = (current_atr / current_price) * 100 if current_price > 0 else 0.0
+        average_tr = sum(tr_values[-period:]) / period  # Средний TR за последний период
+        
+        return {
+            "atr_values": atr_values,
+            "current_atr": round(current_atr, 4),
+            "current_atr_percent": round(current_atr_percent, 4),
+            "tr_values": tr_values,
+            "average_tr": round(average_tr, 4),
+            "period": period
+        }
+
+
+    def get_atr_from_kline(self, symbol: str, interval: str = "60", period: int = 14, 
+                        category: str = "linear"):
+        """
+        Получение ATR напрямую из данных свечей ByBit
+        
+        Args:
+            symbol: торговая пара (например, "BTCUSDT")
+            interval: интервал свечей ("1", "5", "15", "30", "60", "240", "D", "W", "M")
+            period: период для расчета ATR (по умолчанию 14)
+            category: категория ("linear", "spot", "inverse")
+        
+        Returns:
+            dict с результатами расчета ATR
+        
+        Example:
+            result = bybit.get_atr_from_kline("BTCUSDT", interval="60", period=14)
+            print(f"Текущий ATR: {result['current_atr']} пунктов")
+            print(f"ATR в %: {result['current_atr_percent']}%")
+        """
+        
+        # Запрашиваем свечи (с запасом для точного расчета)
+        response = self._req("GET", "/v5/market/kline", {
+            "category": category,
+            "symbol": symbol,
+            "interval": interval,
+            "limit": period * 3  # Запрашиваем с запасом
+        })
+        
+        if response.get("retCode") != 0:
+            return {"error": f"Ошибка API: {response.get('retMsg')}"}
+        
+        data = response.get("result", {}).get("list", [])
+        
+        if len(data) < period:
+            return {"error": f"Недостаточно данных. Получено {len(data)} свечей, нужно минимум {period}"}
+        
+        # Данные приходят от новых к старым, переворачиваем
+        data.reverse()
+        
+        # Извлекаем цены
+        highs = [float(candle[2]) for candle in data]
+        lows = [float(candle[3]) for candle in data]
+        closes = [float(candle[4]) for candle in data]
+        
+        # Рассчитываем ATR
+        result = self.calculate_atr(highs, lows, closes, period)
+        
+        if "error" in result:
+            return result
+        
+        # Добавляем дополнительную информацию
+        result.update({
+            "symbol": symbol,
+            "interval": interval,
+            "current_price": closes[-1],
+            "data_points": len(data)
+        })
+        
+        return result
 
 
 """bybit = ByBit(demo=True)
