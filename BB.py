@@ -358,9 +358,36 @@ class ByBit:
         return response
 
     def place_order(self, symbol: str, side: str, order_type: str, qty: float, 
-                    price: float = None, category: str = "linear"):
+                    price: float = None, stop_loss: float = None, 
+                    take_profit: float = None, category: str = "linear",
+                    position_idx: int = 0):
         """
-        Размещение ордера (без SL/TP)
+        Размещение ордера с опциональными SL/TP
+        
+        Args:
+            symbol: Торговая пара (например, "BTCUSDT")
+            side: Направление ("Buy" или "Sell")
+            order_type: Тип ордера ("Market" или "Limit")
+            qty: Количество
+            price: Цена (для лимитных ордеров)
+            stop_loss: Цена стоп-лосса (опционально)
+            take_profit: Цена тейк-профита (опционально)
+            category: Категория ("linear", "spot", "inverse")
+            position_idx: Индекс позиции (0 - односторонний режим)
+        
+        Returns:
+            dict с ответом API
+        
+        Example:
+            # Рыночный ордер с SL/TP
+            bybit.place_order(
+                symbol="BTCUSDT",
+                side="Buy",
+                order_type="Market",
+                qty=0.01,
+                stop_loss=50000,
+                take_profit=55000
+            )
         """
         params = {
             "category": category,
@@ -368,11 +395,21 @@ class ByBit:
             "side": side,
             "orderType": order_type,
             "qty": str(qty),
-            "timeInForce": "GTC"
+            "timeInForce": "GTC",
+            "positionIdx": position_idx
         }
         
+        # Добавляем цену для лимитных ордеров
         if order_type == "Limit" and price:
             params["price"] = str(price)
+        
+        # Добавляем стоп-лосс если указан
+        if stop_loss:
+            params["stopLoss"] = str(stop_loss)
+        
+        # Добавляем тейк-профит если указан
+        if take_profit:
+            params["takeProfit"] = str(take_profit)
         
         response = self._req("POST", "/v5/order/create", params, auth=True)
         return response
@@ -606,6 +643,47 @@ class ByBit:
         })
         
         return result
+    
+    def set_leverage(self, symbol: str, leverage: int, category: str = "linear"):
+        """
+        Установка кредитного плеча
+        
+        Args:
+            symbol: Торговая пара (например, "BTCUSDT")
+            leverage: Размер плеча (1-100 для linear, зависит от пары)
+            category: Категория ("linear", "spot", "inverse")
+        
+        Returns:
+            dict с ответом API
+        
+        Example:
+            # Установить плечо 10x для BTCUSDT
+            result = bybit.set_leverage("BTCUSDT", 10)
+            print(result)
+        """
+        params = {
+            "category": category,
+            "symbol": symbol,
+            "buyLeverage": str(leverage),
+            "sellLeverage": str(leverage)
+        }
+        
+        response = self._req("POST", "/v5/position/set-leverage", params, auth=True)
+        return response
+    
+    def set_margin_mode(self, mode: str):
+        """
+        Установка режима маржи для Unified Trading Account
+        
+        Args:
+            mode: "ISOLATED_MARGIN" или "REGULAR_MARGIN" (кросс-маржа)
+        
+        Returns:
+            dict с ответом API
+        """
+        params = {"setMarginMode": mode}
+        response = self._req("POST", "/v5/account/set-margin-mode", params, auth=True)
+        return response
 
 
 """bybit = ByBit(demo=True)

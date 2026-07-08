@@ -4,13 +4,15 @@ import time
 import requests
 import os
 from dotenv import load_dotenv
+from BB import ByBit
+import datetime
 
 
-load_dotenv()
 
-x = os.getenv('api_key')
+bybit = ByBit(demo=True)
 
-print(x)
+time_now = datetime.datetime.now()
+print(time)
 
 
 
