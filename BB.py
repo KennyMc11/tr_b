@@ -41,7 +41,7 @@ class ByBit:
                 param_str = "{}"
             sign_str = f"{timestamp}{self.api_key}{recv_window}{param_str}"
         
-        print(f"🔑 Строка для подписи: {sign_str}")
+        #print(f"🔑 Строка для подписи: {sign_str}")
         
         signature = hmac.new(
             self.api_secret.encode('utf-8'),
@@ -49,7 +49,7 @@ class ByBit:
             hashlib.sha256
         ).hexdigest()
         
-        print(f"✅ Подпись: {signature}")
+        #print(f"✅ Подпись: {signature}")
         return signature
     
     def _req(self, method, path, params=None, auth=False):

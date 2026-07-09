@@ -6,8 +6,18 @@ import os
 from dotenv import load_dotenv
 from BB import ByBit
 import datetime
+import logging
 
 
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(message)s',
+    handlers=[
+        logging.FileHandler("events.log", encoding='utf-8'),
+        logging.StreamHandler()
+    ]
+)
 
 bybit = ByBit(demo=True)
 
@@ -62,7 +72,7 @@ print("Рыночная продажа:", order)"""
 #print("Открытые ордера:", open_orders)
 #print("Позиции:", positions)
 
-st240 = bybit.get_supertrend("BTCUSDT", "240", 15, 3.0)
+"""st240 = bybit.get_supertrend("BTCUSDT", "240", 15, 3.0)
 print(f"\nSuperTrend {st240['symbol']}, интервал: {st240["interval"]} мин, период: {st240["period"]} свечей * 3")
 print(f"Текущий сигнал: {st240['current_signal']}")
 print(f"SuperTrend: {st240['current_supertrend']}")
@@ -85,15 +95,18 @@ print(f"📊 Текущая цена: {atr_data_240['current_price']}\n")
 
 
 positions = bybit.get_positions("BTCUSDT")
-print(positions['result']['list'][0]["avgPrice"])
+print(positions['result']['list'][0]["avgPrice"])"""
 
 def order(symbol):
     try:
         # Проверяем, есть ли уже открытая позиция
         positions = bybit.get_positions(symbol)
-        if float(positions['result']['list'][0]["avgPrice"]) > 0:
-            print(f"⏸️ Уже есть открытая позиция: {symbol} цена входа {positions['result']['list'][0]["avgPrice"]}")
-            return
+        pos_list = positions.get('result', {}).get('list', [])
+        if pos_list:
+            pos = pos_list[0].get('avgPrice', 0) or 0
+            if float(pos) > 0:
+                print(f"⏸️ Уже есть открытая позиция: {symbol} цена входа {pos}")
+                return
 
         price = bybit.get_current_price(symbol)
         current_price = float(price['result']['list'][0]['lastPrice'])
@@ -123,7 +136,7 @@ def order(symbol):
                 stop_loss=stop,
                 take_profit=take
                 )
-            print(f"Покупка {symbol}\nЦена: {current_price}\nSL={stop}\nTP={take}\n{time_now}")
+            logging.warning(f"Покупка {symbol}\nЦена: {current_price}\nSL={stop}\nTP={take}\n{time_now}")
 
         elif st_240['current_signal'] == "SHORT" and st_15['current_signal'] == "LONG" and abs(current_price - st_240['current_supertrend'])>= atr_60:
             stop = current_price + (atr_30 * 2)
@@ -136,14 +149,15 @@ def order(symbol):
                 stop_loss=stop,
                 take_profit=take
                 )
-            print(f"Продажа {symbol}\nЦена: {current_price}\nSL={stop}\nTP={take}\n{time_now}")
+            logging.warning(f"Продажа {symbol}\nЦена: {current_price}\nSL={stop}\nTP={take}\n{time_now}")
         else:
-            print("Нейтральный тренд или далеко от линии поддержки/сопротивления")
+            logging.info(f"{symbol} Нейтральный тренд или далеко от линии поддержки/сопротивления")
     except Exception as e:
-        print(f"Ошибка: {e}")
+        logging.error(f"Ошибка: {e}")
 
 
 if __name__ == "__main__":
     while True:
         order("BTCUSDT")
+        order("ETHUSDT")
         time.sleep(900)  # 900 секунд = 15 минут

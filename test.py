@@ -11,9 +11,11 @@ import datetime
 
 bybit = ByBit(demo=True)
 
-time_now = datetime.datetime.now()
-print(time)
-
+positions = bybit.get_positions("ETHUSDT")
+pos_list = positions.get('result', {}).get('list', [])
+if pos_list:
+    pos = pos_list[0].get('avgPrice', []) or 0
+print(float(pos))
 
 
 #api_key=Bg9sqvIb1KXkAOtzN2
