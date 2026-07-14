@@ -111,9 +111,11 @@ def order(symbol):
         price = bybit.get_current_price(symbol)
         current_price = float(price['result']['list'][0]['lastPrice'])
 
+        #Индикаторы супертренд 240 минут и 15 минут
         st_240 = bybit.get_supertrend(symbol, "240", 15, 3.0)
         st_15 = bybit.get_supertrend(symbol, "15", 15, 3.0)
 
+        #Индикатор ATR 30 мин и 60 мин
         atr_data30 = bybit.get_atr_from_kline(symbol, interval="30", period=15)
         atr_30 = atr_data30['current_atr']
 
@@ -125,26 +127,28 @@ def order(symbol):
         bybit.set_leverage(symbol, 25)
         print("Плечо: x25")
 
-        if st_240['current_signal'] == "LONG" and st_15['current_signal'] == "SHORT" and abs(current_price - st_240['current_supertrend'])>= atr_60:
+        if st_240['current_signal'] == "LONG" and st_15['current_signal'] == "SHORT" and abs(current_price - st_240['current_supertrend'])>= atr_30:
             stop = current_price - (atr_30 * 2)
             take = current_price + (atr_30 * 5)
             bybit.place_order(
                 symbol=symbol,
                 side="Buy",
                 order_type="Market",
+                #цена для примера, будет 5% от балланса
                 qty=0.01,
                 stop_loss=stop,
                 take_profit=take
                 )
             logging.warning(f"Покупка {symbol}\nЦена: {current_price}\nSL={stop}\nTP={take}\n{time_now}")
 
-        elif st_240['current_signal'] == "SHORT" and st_15['current_signal'] == "LONG" and abs(current_price - st_240['current_supertrend'])>= atr_60:
+        elif st_240['current_signal'] == "SHORT" and st_15['current_signal'] == "LONG" and abs(current_price - st_240['current_supertrend'])>= atr_30:
             stop = current_price + (atr_30 * 2)
             take = current_price - (atr_30 * 5)
             bybit.place_order(
                 symbol=symbol,
                 side="Sell",
                 order_type="Market",
+                #цена для примера, будет 5% от балланса
                 qty=0.01,
                 stop_loss=stop,
                 take_profit=take
