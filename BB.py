@@ -562,7 +562,7 @@ class ByBit:
             "category": category,
             "symbol": symbol,
             "interval": interval,
-            "limit": period * 3  # Запрашиваем с запасом
+            "limit": period * 5  # Запрашиваем с запасом
         })
         
         if response.get("retCode") != 0:
@@ -637,6 +637,108 @@ class ByBit:
         params = {"setMarginMode": mode}
         response = self._req("POST", "/v5/account/set-margin-mode", params, auth=True)
         return response
+    
+    def get_adx(self, symbol: str, interval: str = "240", period: int = 14, category: str = "linear"):
+        """
+        Получение ADX (индекса направленного движения)
+        
+        Args:
+            symbol: Торговая пара
+            interval: Таймфрейм (рекомендую тот же, что и для глобального тренда - "240")
+            period: Период расчета (стандарт 14)
+        """
+        
+        # Запрашиваем свечи (нужно минимум period * 2 для точного расчета)
+        response = self._req("GET", "/v5/market/kline", {
+            "category": category,
+            "symbol": symbol,
+            "interval": interval,
+            "limit": period * 3
+        })
+        
+        if response.get("retCode") != 0:
+            return {"error": response.get("retMsg")}
+        
+        data = response.get("result", {}).get("list", [])
+        if len(data) < period * 2:
+            return {"error": "Недостаточно данных"}
+        
+        # Переворачиваем (от старых к новым)
+        data.reverse()
+        
+        highs = [float(candle[2]) for candle in data]
+        lows = [float(candle[3]) for candle in data]
+        closes = [float(candle[4]) for candle in data]
+        
+        n = len(data)
+        
+        # Шаг 1: True Range
+        tr = [0.0] * n
+        for i in range(1, n):
+            tr[i] = max(
+                highs[i] - lows[i],
+                abs(highs[i] - closes[i-1]),
+                abs(lows[i] - closes[i-1])
+            )
+        
+        # Шаг 2: Направленные движения (+DM и -DM)
+        plus_dm = [0.0] * n
+        minus_dm = [0.0] * n
+        
+        for i in range(1, n):
+            up_move = highs[i] - highs[i-1]
+            down_move = lows[i-1] - lows[i]
+            
+            if up_move > down_move and up_move > 0:
+                plus_dm[i] = up_move
+            else:
+                plus_dm[i] = 0.0
+                
+            if down_move > up_move and down_move > 0:
+                minus_dm[i] = down_move
+            else:
+                minus_dm[i] = 0.0
+        
+        # Шаг 3: Сглаживание (метод Уайлдера)
+        atr = [0.0] * n
+        atr[period] = sum(tr[1:period+1]) / period
+        
+        for i in range(period+1, n):
+            atr[i] = (atr[i-1] * (period - 1) + tr[i]) / period
+        
+        plus_di = [0.0] * n
+        minus_di = [0.0] * n
+        
+        plus_di[period] = (sum(plus_dm[1:period+1]) / period) / atr[period] * 100
+        minus_di[period] = (sum(minus_dm[1:period+1]) / period) / atr[period] * 100
+        
+        for i in range(period+1, n):
+            plus_smoothed = (plus_di[i-1] * (period - 1) + plus_dm[i]) / period
+            minus_smoothed = (minus_di[i-1] * (period - 1) + minus_dm[i]) / period
+            plus_di[i] = plus_smoothed / atr[i] * 100
+            minus_di[i] = minus_smoothed / atr[i] * 100
+        
+        # Шаг 4: DX и ADX
+        dx = [0.0] * n
+        for i in range(period, n):
+            di_sum = plus_di[i] + minus_di[i]
+            if di_sum != 0:
+                dx[i] = abs(plus_di[i] - minus_di[i]) / di_sum * 100
+        
+        adx = [0.0] * n
+        adx[period * 2 - 1] = sum(dx[period:period*2]) / period
+        
+        for i in range(period*2, n):
+            adx[i] = (adx[i-1] * (period - 1) + dx[i]) / period
+        
+        return {
+            "symbol": symbol,
+            "current_adx": round(adx[-1], 2),
+            "adx_values": adx,
+            "current_plus_di": round(plus_di[-1], 2),
+            "current_minus_di": round(minus_di[-1], 2),
+            "period": period
+        }
 
 
 """bybit = ByBit(demo=True)

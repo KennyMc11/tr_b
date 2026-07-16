@@ -122,12 +122,16 @@ def order(symbol):
         atr_data60 = bybit.get_atr_from_kline(symbol, interval="60", period=15)
         atr_60 = atr_data60['current_atr']
 
+        # Получаем ADX на том же таймфрейме, что и глобальный тренд (240 минут)
+        adx_data = bybit.get_adx(symbol, interval="240", period=14)
+        current_adx = adx_data['current_adx']
+
         bybit.set_margin_mode("ISOLATED_MARGIN")
         print("Изолированная маржа")
         bybit.set_leverage(symbol, 25)
         print("Плечо: x25")
 
-        if st_240['current_signal'] == "LONG" and st_15['current_signal'] == "SHORT" and abs(current_price - st_240['current_supertrend'])>= atr_30:
+        if st_240['current_signal'] == "LONG" and st_15['current_signal'] == "SHORT" and current_price - st_240['current_supertrend'] >= atr_30 and current_adx > 25:
             stop = current_price - (atr_30 * 2)
             take = current_price + (atr_30 * 5)
             bybit.place_order(
@@ -141,7 +145,7 @@ def order(symbol):
                 )
             logging.warning(f"Покупка {symbol}\nЦена: {current_price}\nSL={stop}\nTP={take}\n{time_now}")
 
-        elif st_240['current_signal'] == "SHORT" and st_15['current_signal'] == "LONG" and abs(current_price - st_240['current_supertrend'])>= atr_30:
+        elif st_240['current_signal'] == "SHORT" and st_15['current_signal'] == "LONG" and st_240['current_supertrend'] - current_price >= atr_30 and current_adx > 25:
             stop = current_price + (atr_30 * 2)
             take = current_price - (atr_30 * 5)
             bybit.place_order(
