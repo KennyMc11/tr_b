@@ -320,28 +320,6 @@ class ByBit:
             "candles_count": len(candles_result),
             "candles": candles_result
         }
-
-    def get_supertrend_signal(self, symbol: str, interval: str = "60", period: int = 15, 
-                              multiplier: float = 3.0, category: str = "linear"):
-        """
-        Получение только текущего сигнала SuperTrend
-        
-        Returns:
-            dict с текущим сигналом
-        """
-        result = self.get_supertrend(symbol, interval, period, multiplier, category)
-        
-        if "error" in result:
-            return result
-        
-        return {
-            "symbol": symbol,
-            "interval": interval,
-            "signal": result["current_signal"],
-            "supertrend": result["current_supertrend"],
-            "price": result["current_price"],
-            "trend_change": result["trend_change"]
-        }
     
     
     def get_balance(self, account_type: str = "UNIFIED"):
@@ -480,31 +458,6 @@ class ByBit:
         response = self._req("GET", "/v5/position/list", params, auth=True)
         return response
 
-    def weighted_mean(self, data, min_weight=0.1, max_weight=1.0):
-        """
-        Вычисляет взвешенное среднее с плавно возрастающими весами.
-        Args:
-            data: список чисел
-            min_weight: вес первого элемента (по умолчанию 0.1)
-            max_weight: вес последнего элемента (по умолчанию 1.0)
-        Returns:
-            взвешенное среднее
-        """
-        n = len(data)
-        
-        if n == 0:
-            return 0
-        
-        # Создаем веса от min_weight до max_weight равномерно
-        if n == 1:
-            weights = [1.0]  # если один элемент, вес = 1
-        else:
-            weights = [min_weight + (max_weight - min_weight) * i / (n - 1) for i in range(n)]
-        
-        # Считаем взвешенное среднее
-        weighted_mean = sum(d * w for d, w in zip(data, weights)) / sum(weights)
-        
-        return weighted_mean
 
     def calculate_atr(self, highs, lows, closes, period=15):
         """
