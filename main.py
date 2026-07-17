@@ -131,7 +131,7 @@ def order(symbol):
         bybit.set_leverage(symbol, 25)
         print("Плечо: x25")
 
-        if st_240['current_signal'] == "LONG" and st_15['current_signal'] == "SHORT" and current_price - st_240['current_supertrend'] >= atr_30 and current_adx > 25:
+        if st_240['current_signal'] == "LONG" and st_15['current_signal'] == "SHORT" and current_price - st_240['current_supertrend'] >= atr_30 * 0.5 and current_adx > 25:
             stop = current_price - (atr_30 * 2)
             take = current_price + (atr_30 * 2)
             bybit.place_order(
@@ -145,7 +145,7 @@ def order(symbol):
                 )
             logging.warning(f"Покупка {symbol}\nЦена: {current_price}\nSL={stop}\nTP={take}\n{time_now}")
 
-        elif st_240['current_signal'] == "SHORT" and st_15['current_signal'] == "LONG" and st_240['current_supertrend'] - current_price >= atr_30 and current_adx > 25:
+        elif st_240['current_signal'] == "SHORT" and st_15['current_signal'] == "LONG" and st_240['current_supertrend'] - current_price >= atr_30 * 0.5 and current_adx > 25:
             stop = current_price + (atr_30 * 2)
             take = current_price - (atr_30 * 2)
             bybit.place_order(
