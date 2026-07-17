@@ -132,8 +132,8 @@ def order(symbol):
         print("Плечо: x25")
 
         if st_240['current_signal'] == "LONG" and st_15['current_signal'] == "SHORT" and current_price - st_240['current_supertrend'] >= atr_30 and current_adx > 25:
-            stop = current_price - (atr_30 * 2)
-            take = current_price + (atr_30 * 5)
+            stop = current_price - (atr_30 * 1)
+            take = current_price + (atr_30 * 3)
             bybit.place_order(
                 symbol=symbol,
                 side="Buy",
@@ -146,8 +146,8 @@ def order(symbol):
             logging.warning(f"Покупка {symbol}\nЦена: {current_price}\nSL={stop}\nTP={take}\n{time_now}")
 
         elif st_240['current_signal'] == "SHORT" and st_15['current_signal'] == "LONG" and st_240['current_supertrend'] - current_price >= atr_30 and current_adx > 25:
-            stop = current_price + (atr_30 * 2)
-            take = current_price - (atr_30 * 5)
+            stop = current_price + (atr_30 * 1)
+            take = current_price - (atr_30 * 3)
             bybit.place_order(
                 symbol=symbol,
                 side="Sell",
